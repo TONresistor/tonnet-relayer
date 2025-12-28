@@ -1,178 +1,64 @@
+<div align="center">
+
 # Tonnet Relay
 
-Onion routing relay node for the TON blockchain. Part of the Tonnet anonymity network.
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![TON](https://img.shields.io/badge/TON-Network-0088CC?logo=telegram)](https://ton.org/)
 
-## What is Tonnet?
+**Onion routing relay node for TON blockchain**
 
-Tonnet is an anonymity layer for TON Network, similar to Tor but built on TON protocols (ADNL, RLDP, DHT). It routes traffic through 3-hop encrypted circuits so no single node can link users to their destinations.
+[Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [Join Network](#join-the-network)
 
-```
-Client -> Entry -> Middle -> Exit -> TON Site
-            |         |        |
-         sees IP   sees      sees
-         not dest  nothing   dest not IP
-```
+</div>
 
-## This Repository
+---
 
-**tonnet-relay** is the server component that operators run to contribute relay capacity to the network.
+## Overview
 
-Looking for the client? See [tonnet-proxy](https://github.com/TONresistor/tonnet-proxy).
-
-## Requirements
-
-- Linux server with public IP
-- Ports 9001 (TCP) and 9002 (UDP) open
-- Go 1.21+ (for building from source)
+Tonnet Relay is a node in the Tonnet anonymity network. Traffic is routed through 3 relays with layered encryption. Each relay only knows its immediate neighbors, never the full path.
 
 ## Installation
 
-### From Releases
-
 ```bash
-# Download latest release
 curl -L https://github.com/TONresistor/tonnet-relay/releases/latest/download/tonnet-relay-linux-amd64 -o tonnet-relay
 chmod +x tonnet-relay
-sudo mv tonnet-relay /usr/local/bin/
 ```
 
-### From Source
+## Usage
 
 ```bash
-git clone https://github.com/TONresistor/tonnet-relay.git
-cd tonnet-relay
-make build
-sudo mv bin/tonnet-relay /usr/local/bin/
-```
+# Initialize
+./tonnet-relay init
 
-## Quick Start
+# Start relay
+./tonnet-relay start
 
-```bash
-# 1. Initialize (creates keys and config)
-tonnet-relay init
+# Start as exit node
+./tonnet-relay start --exit --global-config ~/.tonnet-relay/global-config.json
 
-# 2. Start relay
-tonnet-relay start
-
-# 3. Check your node info
-tonnet-relay info
-```
-
-## Running as Exit Node
-
-Exit nodes can resolve `.ton` domains and fetch TON sites. They require the TON global config:
-
-```bash
-# Download TON mainnet config
-curl -o ~/.tonnet-relay/global-config.json https://ton.org/global-config.json
-
-# Start with exit capability
-tonnet-relay start --exit --global-config ~/.tonnet-relay/global-config.json
+# Show node info
+./tonnet-relay info
 ```
 
 ## Configuration
 
-Config file: `~/.tonnet-relay/config.json`
+`~/.tonnet-relay/config.json`
 
-```json
-{
-  "node": {
-    "external_ip": "YOUR_SERVER_IP",
-    "port": 9001,
-    "udp_port": 9002
-  },
-  "exit": {
-    "enabled": true,
-    "global_config_path": "/root/.tonnet-relay/global-config.json"
-  }
-}
-```
-
-## Ports
-
-| Port | Protocol | Purpose |
-|------|----------|---------|
-| 9001 | TCP | ADNL client connections |
-| 9002 | UDP | Relay-to-relay forwarding |
-| 9090 | HTTP | Prometheus metrics |
-
-## CLI Commands
-
-```
-tonnet-relay init          Initialize new relay node
-tonnet-relay start         Start the relay server
-tonnet-relay stop          Stop the relay server
-tonnet-relay info          Show node pubkey and address
-tonnet-relay status        Show relay status
-tonnet-relay version       Show version
-```
-
-## Deployment
-
-### Systemd
-
-```ini
-# /etc/systemd/system/tonnet-relay.service
-[Unit]
-Description=Tonnet Relay
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/tonnet-relay start --exit --global-config /root/.tonnet-relay/global-config.json
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl enable tonnet-relay
-sudo systemctl start tonnet-relay
-```
+| Option | Default | Description |
+|--------|---------|-------------|
+| `node.port` | 9001 | ADNL listen port |
+| `node.udp_port` | 9002 | UDP tunnel port |
+| `exit.enabled` | false | Enable exit mode |
 
 ## Join the Network
 
-To add your relay to the public directory, submit a PR to [tonnet-directory](https://github.com/TONresistor/tonnet-directory) with your node info:
+1. Run `./tonnet-relay info` to get your pubkey
+2. Submit PR to [tonnet-directory](https://github.com/TONresistor/tonnet-directory)
 
-```json
-{
-  "name": "my-relay",
-  "pubkey": "<your-pubkey-from-tonnet-relay-info>",
-  "address": "<your-ip>:9001",
-  "roles": ["entry", "middle", "exit"]
-}
-```
+## Related
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                      tonnet-relay                       │
-├─────────────────────────────────────────────────────────┤
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌───────────┐  │
-│  │  ADNL   │  │  UDP    │  │ Circuit │  │   Exit    │  │
-│  │ Server  │  │ Tunnel  │  │ Engine  │  │  Handler  │  │
-│  │ :9001   │  │ :9002   │  │         │  │ (RLDP)    │  │
-│  └────┬────┘  └────┬────┘  └────┬────┘  └─────┬─────┘  │
-│       │            │            │              │        │
-│       └────────────┴─────┬──────┴──────────────┘        │
-│                          │                              │
-│                    ┌─────┴─────┐                        │
-│                    │  Crypto   │                        │
-│                    │ ChaCha20  │                        │
-│                    │  X25519   │                        │
-│                    └───────────┘                        │
-└─────────────────────────────────────────────────────────┘
-```
-
-## Security
-
-- Each relay only knows the previous and next hop
-- Traffic is encrypted with ChaCha20-Poly1305
-- Keys are negotiated per-circuit using X25519
-- Exit nodes see destination but not client IP
+- [tonnet-proxy](https://github.com/TONresistor/tonnet-proxy) - Client proxy
 
 ## License
 
