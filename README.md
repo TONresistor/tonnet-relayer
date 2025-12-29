@@ -1,6 +1,6 @@
 <div align="center">
 
-# Tonnet Relay
+# Tonnet Relayer
 
 [![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -294,8 +294,8 @@ docker run -d \
 ### Building from Source
 
 ```bash
-git clone https://github.com/TONresistor/tonnet-relay.git
-cd tonnet-relay
+git clone https://github.com/TONresistor/tonnet-relayer.git
+cd tonnet-relayer
 go mod download
 make build
 make test
