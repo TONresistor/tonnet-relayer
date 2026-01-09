@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -244,6 +245,21 @@ func (e *ExitNode) HandleStreamData(circuit Circuit, streamID int, data []byte) 
 		zap.Int("status", resp.StatusCode),
 		zap.String("host", stream.Host),
 	)
+
+	// Read full body to fix Content-Length mismatch from tonutils-go bug
+	// (tonutils copies request Content-Length to response Content-Length)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read response body: %w", err)
+	}
+
+	// Reset response metadata and set correct Content-Length
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	resp.ContentLength = int64(len(body))
+	resp.TransferEncoding = nil
+	resp.Header.Del("Content-Length")
+	resp.Header.Del("Transfer-Encoding")
+	resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
 
 	// Serialize HTTP response
 	var respBuf bytes.Buffer
