@@ -1,3 +1,5 @@
+> ⚠️ **Archived.** TONNET has migrated from a custom relay stack to TON's native ADNL tunnel ([`adnl-tunnel`](https://github.com/ton-blockchain/adnl-tunnel)). This relay node is no longer maintained.
+
 <div align="center">
 
 # Tonnet Relayer
